@@ -1,0 +1,149 @@
+body {
+  font-family: Arial, sans-serif;
+  background-color: #f4f7fb;
+  padding: 20px;
+  text-align: center;
+}
+
+.container {
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+/* Branding */
+.header-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.brand-logo {
+  width: 110px;
+  margin-bottom: 10px;
+}
+
+h1 {
+  margin: 0;
+  color: #333;
+}
+
+.subtitle {
+  margin-bottom: 15px;
+}
+
+/* Status Bar */
+.status-bar {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 15px;
+  font-size: 0.9rem;
+}
+
+/* Cards */
+.card {
+  background: white;
+  padding: 18px;
+  border-radius: 12px;
+  margin: 15px 0;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  text-align: left;
+}
+
+h2 {
+  margin-top: 0;
+}
+
+input {
+  width: 100%;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  margin: 8px 0;
+}
+
+/* Buttons */
+.icon-btn {
+  background: #007bff;
+  color: white;
+  border: none;
+  padding: 10px 16px;
+  font-size: 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.icon-btn.warn {
+  background: #ff9800;
+}
+
+.small-btn {
+  background: #e0e0e0;
+  border: none;
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.icon {
+  width: 22px;
+  height: 22px;
+}
+
+/* Items */
+#itemList {
+  list-style: none;
+  padding: 0;
+  margin-top: 10px;
+}
+
+#itemList li {
+  background: #fff;
+  padding: 10px;
+  margin: 8px 0;
+  border-radius: 8px;
+  display: flex;
+  justify-content: space-between;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.item-main {
+  display: flex;
+  flex-direction: column;
+}
+
+.item-name {
+  font-weight: bold;
+}
+
+.item-meta {
+  font-size: 12px;
+  color: #777;
+}
+
+.delete-btn img {
+  width: 26px;
+}
+
+/* Toast */
+#toast {
+  visibility: hidden;
+  background: #333;
+  color: white;
+  position: fixed;
+  padding: 14px;
+  border-radius: 8px;
+  left: 50%;
+  bottom: 20px;
+  transform: translateX(-50%);
+  opacity: 0;
+  transition: opacity .4s;
+}
+
+#toast.show {
+  visibility: visible;
+  opacity: 1;
+}
