@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Check Your Pockets</title>
+
+  <!-- Styles & Manifest -->
+  <link rel="stylesheet" href="style.css" />
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#007bff" />
+  <link rel="icon" href="app-icon.png" type="image/png" />
+</head>
+
+<body>
+  <div class="container">
+
+    <!-- Brand Header -->
+    <div class="header-brand">
+      <img src="app-icon.png" class="brand-logo" alt="App Logo" />
+      <h1>Check Your Pockets</h1>
+    </div>
+
+    <p class="subtitle">
+      Catalog items, remember where you left them, and get reminders to check.
+    </p>
+
+    <!-- Status Bar -->
+    <div class="status-bar">
+      <span id="statusText">Checking connection...</span>
+      <button id="syncButton" class="small-btn">Sync Now</button>
+      <span id="syncStatus"></span>
+    </div>
+
+    <!-- New Item -->
+    <div class="card">
+      <h2>New Item</h2>
+      <input type="text" id="itemName" placeholder="Item name (e.g., Wallet)" />
+      <input type="text" id="itemLocation" placeholder="Last location (e.g., Desk drawer)" />
+      <button id="addItemButton" class="icon-btn">
+        <img src="add-icon.png" class="icon" alt="Add" /> Add Item
+      </button>
+    </div>
+
+    <!-- Item List -->
+    <div class="card">
+      <h2>Items</h2>
+      <ul id="itemList"></ul>
+    </div>
+
+    <!-- Reminder -->
+    <div class="card">
+      <h2>Reminder</h2>
+      <label for="reminderInterval">Reminder Interval (minutes):</label>
+      <input type="number" id="reminderInterval" min="1" value="10" />
+
+      <div class="reminder-buttons">
+        <button id="setReminderButton" class="icon-btn warn">
+          <img src="reminder-icon.png" class="icon" alt="Reminder" /> Set Reminder
+        </button>
+        <button id="cancelReminderButton" class="small-btn">
+          Cancel Reminder
+        </button>
+      </div>
+    </div>
+
+    <!-- Toast -->
+    <div id="toast"></div>
+  </div>
+
+  <!-- Firebase (v8 compat CDN) -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
+  <!-- App Logic -->
+  <script src="script.js"></script>
+
+  <!-- Service Worker -->
+  <script>
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("./service-worker.js")
+        .then(() => console.log("Service Worker Registered"));
+    }
+  </script>
+</body>
+</html>
