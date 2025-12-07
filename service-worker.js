@@ -1,4 +1,4 @@
-// Bump the cache name so browsers grab the new assets (including updated CSS)
+// Bump the cache name so browsers grab the new assets
 const CACHE_NAME = 'pockets-cache-v4';
 
 const FILES_TO_CACHE = [
@@ -17,8 +17,8 @@ const FILES_TO_CACHE = [
   './reminder-icon.png',
 
   'https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js',
-  'https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js',
-  'https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js'
+  'https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js',
+  'https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js'
 ];
 
 self.addEventListener('install', event => {
