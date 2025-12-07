@@ -17,6 +17,7 @@ const FILES_TO_CACHE = [
   './reminder-icon.png',
 
   'https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js',
+  'https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js',
   'https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js'
 ];
 
