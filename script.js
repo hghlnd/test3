@@ -2,7 +2,7 @@
  *  FIREBASE INITIALIZATION
  ***************************************************************************/
 
-//  Firebase config
+// Firebase config
 firebase.initializeApp({
   apiKey: "AIzaSyC7lCDQssJJkOe9ux49hmyUCD9Y5NMEdBs",
   authDomain: "test3-53d9d.firebaseapp.com",
@@ -13,9 +13,12 @@ firebase.initializeApp({
   measurementId: "G-4PWTYR2E9Q"
 });
 
-// Firestore reference
+// Firebase services
 const db = firebase.firestore();
-const itemsCollection = db.collection("items");
+const auth = firebase.auth();
+
+let currentUser = null;
+let itemsCollection = null;
 
 
 /***************************************************************************
@@ -84,6 +87,8 @@ function idbClear() {
 
 function updateStatus() {
   const statusText = document.getElementById("statusText");
+  if (!statusText) return;
+
   statusText.textContent = navigator.onLine ? "Online" : "Offline";
   statusText.style.color = navigator.onLine ? "green" : "red";
 }
@@ -93,23 +98,55 @@ window.addEventListener("offline", updateStatus);
 
 
 /***************************************************************************
+ *  AUTH STATE LISTENER
+ ***************************************************************************/
+
+auth.onAuthStateChanged(user => {
+  currentUser = user;
+
+  if (currentUser) {
+    itemsCollection = db
+      .collection("users")
+      .doc(currentUser.uid)
+      .collection("items");
+
+    showToast("Signed in");
+    loadItems();
+  } else {
+    itemsCollection = null;
+    items = [];
+    renderItems();
+  }
+
+  updateAuthUI();
+});
+
+
+/***************************************************************************
  *  SYNC LOGIC — On reconnect, send IndexedDB → Firestore
  ***************************************************************************/
 
 async function handleReconnect() {
   updateStatus();
+  if (!currentUser || !itemsCollection) return;
+
   showToast("Back online — syncing...");
   await syncLocalToFirebase();
 }
 
 async function syncLocalToFirebase() {
-  const localItems = await idbGetAll();
-  if (localItems.length === 0) return;
+  if (!currentUser || !itemsCollection) return;
 
-  for (const item of localItems) {
+  const localItems = await idbGetAll();
+  const userItems = localItems.filter(item => item.userId === currentUser.uid);
+
+  if (userItems.length === 0) return;
+
+  for (const item of userItems) {
     await itemsCollection.doc(item.id).set(item);
   }
 
+  // After syncing, reload from Firestore so both sides share Firestore IDs
   await idbClear();
   await loadItemsFromFirebase();
 
@@ -121,17 +158,25 @@ async function syncLocalToFirebase() {
  *  CRUD OPERATIONS
  ***************************************************************************/
 
+let items = [];
+
 async function addItem(name, locationText) {
+  if (!currentUser) {
+    showToast("Please sign in first");
+    return;
+  }
+
   const id = Date.now().toString();
 
   const item = {
     id,
+    userId: currentUser.uid,
     name,
     location: locationText,
     timestamp: Date.now()
   };
 
-  if (navigator.onLine) {
+  if (navigator.onLine && itemsCollection) {
     await itemsCollection.doc(id).set(item);
   } else {
     await idbAdd(item);
@@ -142,7 +187,12 @@ async function addItem(name, locationText) {
 }
 
 async function deleteItem(id) {
-  if (navigator.onLine) {
+  if (!currentUser) {
+    showToast("Please sign in first");
+    return;
+  }
+
+  if (navigator.onLine && itemsCollection) {
     await itemsCollection.doc(id).delete();
   } else {
     await idbDelete(id);
@@ -157,10 +207,14 @@ async function deleteItem(id) {
  *  LOAD ITEMS FROM THE CORRECT SOURCE
  ***************************************************************************/
 
-let items = [];
-
 async function loadItems() {
-  if (navigator.onLine) {
+  if (!currentUser) {
+    items = [];
+    renderItems();
+    return;
+  }
+
+  if (navigator.onLine && itemsCollection) {
     await loadItemsFromFirebase();
   } else {
     await loadItemsFromIndexedDB();
@@ -170,12 +224,21 @@ async function loadItems() {
 }
 
 async function loadItemsFromFirebase() {
+  if (!itemsCollection) {
+    items = [];
+    return;
+  }
   const snapshot = await itemsCollection.orderBy("timestamp").get();
   items = snapshot.docs.map(doc => doc.data());
 }
 
 async function loadItemsFromIndexedDB() {
-  items = await idbGetAll();
+  if (!currentUser) {
+    items = [];
+    return;
+  }
+  const all = await idbGetAll();
+  items = all.filter(item => item.userId === currentUser.uid);
 }
 
 
@@ -185,6 +248,8 @@ async function loadItemsFromIndexedDB() {
 
 function renderItems() {
   const list = document.getElementById("itemList");
+  if (!list) return;
+
   list.innerHTML = "";
 
   if (items.length === 0) {
@@ -235,9 +300,63 @@ document.getElementById("syncButton")?.addEventListener("click", async () => {
     return;
   }
 
+  if (!currentUser) {
+    showToast("Please sign in first");
+    return;
+  }
+
   showToast("Syncing...");
   await syncLocalToFirebase();
 });
+
+
+/***************************************************************************
+ *  AUTH BUTTON HANDLERS
+ ***************************************************************************/
+
+const loginBtn = document.getElementById("loginButton");
+const logoutBtn = document.getElementById("logoutButton");
+
+if (loginBtn) {
+  loginBtn.addEventListener("click", async () => {
+    try {
+      const provider = new firebase.auth.GoogleAuthProvider();
+      await auth.signInWithPopup(provider);
+      // onAuthStateChanged will handle UI + data
+    } catch (err) {
+      console.error(err);
+      showToast("Sign-in failed");
+    }
+  });
+}
+
+if (logoutBtn) {
+  logoutBtn.addEventListener("click", async () => {
+    try {
+      await auth.signOut();
+      // onAuthStateChanged will clear UI + data
+    } catch (err) {
+      console.error(err);
+      showToast("Sign-out failed");
+    }
+  });
+}
+
+function updateAuthUI() {
+  const userInfo = document.getElementById("userInfo");
+  if (!userInfo || !loginBtn || !logoutBtn) return;
+
+  if (currentUser) {
+    userInfo.textContent =
+      currentUser.displayName || currentUser.email || "Signed in";
+    loginBtn.style.display = "none";
+    logoutBtn.style.display = "inline-block";
+  } else {
+    userInfo.textContent = "Not signed in";
+    loginBtn.style.display = "inline-block";
+    logoutBtn.style.display = "none";
+  }
+}
 
 
 /***************************************************************************
@@ -262,11 +381,11 @@ document.getElementById("setReminderButton").addEventListener("click", () => {
       return;
     }
 
-    const list = items.map(i =>
-      `${i.name}${i.location ? ` (${i.location})` : ""}`
-    ).join(", ");
+    const listText = items
+      .map(i => `${i.name}${i.location ? ` (${i.location})` : ""}`)
+      .join(", ");
 
-    alert("Reminder: " + list);
+    alert("Reminder: " + listText);
   }, mins * 60 * 1000);
 
   showToast("Reminder set!");
@@ -287,6 +406,8 @@ document.getElementById("cancelReminderButton")?.addEventListener("click", () =>
 
 function showToast(msg) {
   const toast = document.getElementById("toast");
+  if (!toast) return;
+
   toast.textContent = msg;
   toast.classList.add("show");
   setTimeout(() => toast.classList.remove("show"), 2200);
@@ -300,5 +421,5 @@ function showToast(msg) {
 (async function init() {
   await initIndexedDB();
   updateStatus();
-  await loadItems();
+  // auth.onAuthStateChanged will call loadItems when logged in
 })();
