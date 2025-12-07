@@ -19,6 +19,7 @@ const auth = firebase.auth();
 
 let currentUser = null;
 let itemsCollection = null;
+let isGuest = false;   // guest mode flag
 
 
 /***************************************************************************
@@ -105,6 +106,7 @@ auth.onAuthStateChanged(user => {
   currentUser = user;
 
   if (currentUser) {
+    isGuest = false; // leaving guest mode
     itemsCollection = db
       .collection("users")
       .doc(currentUser.uid)
@@ -114,8 +116,12 @@ auth.onAuthStateChanged(user => {
     loadItems();
   } else {
     itemsCollection = null;
-    items = [];
-    renderItems();
+
+    // Only clear items if we are NOT in guest mode
+    if (!isGuest) {
+      items = [];
+      renderItems();
+    }
   }
 
   updateAuthUI();
@@ -128,14 +134,14 @@ auth.onAuthStateChanged(user => {
 
 async function handleReconnect() {
   updateStatus();
-  if (!currentUser || !itemsCollection) return;
+  if (!currentUser || !itemsCollection || isGuest) return;
 
   showToast("Back online — syncing...");
   await syncLocalToFirebase();
 }
 
 async function syncLocalToFirebase() {
-  if (!currentUser || !itemsCollection) return;
+  if (!currentUser || !itemsCollection || isGuest) return;
 
   const localItems = await idbGetAll();
   const userItems = localItems.filter(item => item.userId === currentUser.uid);
@@ -146,7 +152,6 @@ async function syncLocalToFirebase() {
     await itemsCollection.doc(item.id).set(item);
   }
 
-  // After syncing, reload from Firestore so both sides share Firestore IDs
   await idbClear();
   await loadItemsFromFirebase();
 
@@ -161,22 +166,31 @@ async function syncLocalToFirebase() {
 let items = [];
 
 async function addItem(name, locationText) {
-  if (!currentUser) {
-    showToast("Please sign in first");
-    return;
-  }
-
   const id = Date.now().toString();
 
   const item = {
     id,
-    userId: currentUser.uid,
+    userId: currentUser ? currentUser.uid : null,
     name,
     location: locationText,
     timestamp: Date.now()
   };
 
-  if (navigator.onLine && itemsCollection) {
+  // Guest mode: in-memory only, no saving
+  if (isGuest) {
+    items.push(item);
+    renderItems();
+    showToast("Item added (guest — not saved)");
+    return;
+  }
+
+  // Require sign-in if not guest
+  if (!currentUser || !itemsCollection) {
+    showToast("Please sign in or use guest mode");
+    return;
+  }
+
+  if (navigator.onLine) {
     await itemsCollection.doc(id).set(item);
   } else {
     await idbAdd(item);
@@ -187,12 +201,20 @@ async function addItem(name, locationText) {
 }
 
 async function deleteItem(id) {
-  if (!currentUser) {
+  // Guest mode: remove from local array only
+  if (isGuest) {
+    items = items.filter(i => i.id !== id);
+    renderItems();
+    showToast("Item deleted (guest)");
+    return;
+  }
+
+  if (!currentUser || !itemsCollection) {
     showToast("Please sign in first");
     return;
   }
 
-  if (navigator.onLine && itemsCollection) {
+  if (navigator.onLine) {
     await itemsCollection.doc(id).delete();
   } else {
     await idbDelete(id);
@@ -208,6 +230,12 @@ async function deleteItem(id) {
  ***************************************************************************/
 
 async function loadItems() {
+  if (isGuest) {
+    // In guest mode, items are only in memory
+    renderItems();
+    return;
+  }
+
   if (!currentUser) {
     items = [];
     renderItems();
@@ -295,6 +323,11 @@ document.getElementById("addItemButton").addEventListener("click", async () => {
 });
 
 document.getElementById("syncButton")?.addEventListener("click", async () => {
+  if (isGuest) {
+    showToast("Guest mode — nothing to sync");
+    return;
+  }
+
   if (!navigator.onLine) {
     showToast("Offline — Cannot sync");
     return;
@@ -314,15 +347,48 @@ document.getElementById("syncButton")?.addEventListener("click", async () => {
  *  AUTH BUTTON HANDLERS
  ***************************************************************************/
 
-const loginBtn = document.getElementById("loginButton");
-const logoutBtn = document.getElementById("logoutButton");
+const loginEmailInput = document.getElementById("loginEmail");
+const loginPasswordInput = document.getElementById("loginPassword");
+const signupButton = document.getElementById("signupButton");
+const signinButton = document.getElementById("signinButton");
+const guestButton = document.getElementById("guestButton");
+const logoutButton = document.getElementById("logoutButton");
 
-if (loginBtn) {
-  loginBtn.addEventListener("click", async () => {
+if (signupButton) {
+  signupButton.addEventListener("click", async () => {
+    const email = loginEmailInput.value.trim();
+    const password = loginPasswordInput.value;
+
+    if (!email || !password) {
+      showToast("Enter email and password");
+      return;
+    }
+
     try {
-      const provider = new firebase.auth.GoogleAuthProvider();
-      await auth.signInWithPopup(provider);
-      // onAuthStateChanged will handle UI + data
+      await auth.createUserWithEmailAndPassword(email, password);
+      isGuest = false;
+      showToast("Account created");
+    } catch (err) {
+      console.error(err);
+      showToast("Sign-up failed");
+    }
+  });
+}
+
+if (signinButton) {
+  signinButton.addEventListener("click", async () => {
+    const email = loginEmailInput.value.trim();
+    const password = loginPasswordInput.value;
+
+    if (!email || !password) {
+      showToast("Enter email and password");
+      return;
+    }
+
+    try {
+      await auth.signInWithEmailAndPassword(email, password);
+      isGuest = false;
+      showToast("Signed in");
     } catch (err) {
       console.error(err);
       showToast("Sign-in failed");
@@ -330,11 +396,25 @@ if (loginBtn) {
   });
 }
 
-if (logoutBtn) {
-  logoutBtn.addEventListener("click", async () => {
+if (guestButton) {
+  guestButton.addEventListener("click", async () => {
+    isGuest = true;
+    if (auth.currentUser) {
+      await auth.signOut();
+    }
+    items = [];
+    renderItems();
+    showToast("Guest mode — items will not be saved");
+    updateAuthUI();
+  });
+}
+
+if (logoutButton) {
+  logoutButton.addEventListener("click", async () => {
+    isGuest = false;
     try {
       await auth.signOut();
-      // onAuthStateChanged will clear UI + data
+      showToast("Signed out");
     } catch (err) {
       console.error(err);
       showToast("Sign-out failed");
@@ -344,17 +424,20 @@ if (logoutBtn) {
 
 function updateAuthUI() {
   const userInfo = document.getElementById("userInfo");
-  if (!userInfo || !loginBtn || !logoutBtn) return;
+  if (!userInfo) return;
 
   if (currentUser) {
-    userInfo.textContent =
-      currentUser.displayName || currentUser.email || "Signed in";
-    loginBtn.style.display = "none";
-    logoutBtn.style.display = "inline-block";
+    userInfo.textContent = currentUser.email || "Signed in";
+    logoutButton.style.display = "inline-block";
+    guestButton.style.display = "none";
+  } else if (isGuest) {
+    userInfo.textContent = "Guest mode (not saved)";
+    logoutButton.style.display = "none";
+    guestButton.style.display = "inline-block";
   } else {
     userInfo.textContent = "Not signed in";
-    loginBtn.style.display = "inline-block";
-    logoutBtn.style.display = "none";
+    logoutButton.style.display = "none";
+    guestButton.style.display = "inline-block";
   }
 }
 
@@ -421,5 +504,5 @@ function showToast(msg) {
 (async function init() {
   await initIndexedDB();
   updateStatus();
-  // auth.onAuthStateChanged will call loadItems when logged in
+  // auth.onAuthStateChanged will handle loading user data
 })();
