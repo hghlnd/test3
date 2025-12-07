@@ -46,6 +46,48 @@ h1 {
 }
 
 /* -----------------------------
+   AUTH BAR
+------------------------------ */
+.auth-bar {
+  background: rgba(255, 255, 255, 0.85);
+  border-radius: 16px;
+  padding: 14px 16px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+  margin-bottom: 16px;
+}
+
+.auth-top {
+  margin-bottom: 8px;
+}
+
+.auth-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.auth-controls input {
+  flex: 1 1 150px;
+  margin: 0;
+}
+
+.auth-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* alt style button (guest) */
+.small-btn.alt {
+  background: #ffe0b2;
+}
+
+.small-btn.alt:hover {
+  background: #ffcc80;
+}
+
+/* -----------------------------
    STATUS BAR
 ------------------------------ */
 .status-bar {
@@ -57,19 +99,6 @@ h1 {
   font-weight: bold;
   padding: 4px 12px;
   border-radius: 12px;
-}
-
-.small-btn {
-  padding: 6px 12px;
-  border-radius: 8px;
-  border: none;
-  background: #e6e6e6;
-  cursor: pointer;
-  transition: 0.2s;
-}
-
-.small-btn:hover {
-  background: #d3d3d3;
 }
 
 /* -----------------------------
@@ -145,6 +174,19 @@ input:focus {
   height: 28px;
 }
 
+.small-btn {
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: none;
+  background: #e6e6e6;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.small-btn:hover {
+  background: #d3d3d3;
+}
+
 /* -----------------------------
    ITEM LIST
 ------------------------------ */
@@ -202,6 +244,17 @@ input:focus {
 
 .delete-btn img:hover {
   transform: scale(1.15);
+}
+
+/* -----------------------------
+   REMINDER BUTTON ROW
+------------------------------ */
+.reminder-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-top: 10px;
 }
 
 /* -----------------------------
