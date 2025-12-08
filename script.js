@@ -40,7 +40,10 @@ function initIndexedDB() {
       resolve();
     };
 
-    openReq.onerror = reject;
+    openReq.onerror = (err) => {
+      console.error("IndexedDB open error:", err);
+      reject(err);
+    };
   });
 }
 
@@ -163,7 +166,7 @@ if (signupButton) {
       isGuest = false;
       showToast("Account created");
     } catch (err) {
-      console.error(err);
+      console.error("Sign-up error:", err);
       showToast(err.message || "Sign-up failed");
     }
   });
@@ -185,7 +188,7 @@ if (signinButton) {
       isGuest = false;
       showToast("Signed in");
     } catch (err) {
-      console.error(err);
+      console.error("Sign-in error:", err);
       showToast(err.message || "Sign-in failed");
     }
   });
@@ -215,11 +218,11 @@ if (signoutButton) {
       if (userInfo) userInfo.textContent = "Not signed in";
       showToast("Signed out");
     } catch (err) {
-      console.error(err);
+      console.error("Sign-out error:", err);
       showToast("Sign-out failed");
     }
   });
-}
+});
 
 
 /***************************************************************************
@@ -236,19 +239,24 @@ async function syncLocalToFirebase() {
   const user = auth.currentUser;
   if (!user) return;
 
-  const localItems = await idbGetAll();
-  const mine = localItems.filter(i => i.userId === user.uid);
+  try {
+    const localItems = await idbGetAll();
+    const mine = localItems.filter(i => i.userId === user.uid);
 
-  if (mine.length === 0) return;
+    if (mine.length === 0) return;
 
-  for (const item of mine) {
-    await itemsCollection.doc(item.id).set(item);
+    for (const item of mine) {
+      await itemsCollection.doc(item.id).set(item);
+    }
+
+    await idbClear();
+    await loadItemsFromFirebase();
+
+    showToast("Sync complete!");
+  } catch (err) {
+    console.error("Sync error:", err);
+    showToast("Sync failed (check console)");
   }
-
-  await idbClear();
-  await loadItemsFromFirebase();
-
-  showToast("Sync complete!");
 }
 
 
@@ -276,15 +284,19 @@ async function addItem(name, locationText) {
     return;
   }
 
-  // Signed-in user
-  if (navigator.onLine) {
-    await itemsCollection.doc(id).set(item);
-  } else {
-    await idbAdd(item);
-  }
+  try {
+    if (navigator.onLine) {
+      await itemsCollection.doc(id).set(item);
+    } else {
+      await idbAdd(item);
+    }
 
-  await loadItems();
-  showToast("Item added!");
+    await loadItems();
+    showToast("Item added!");
+  } catch (err) {
+    console.error("Error adding item:", err);
+    showToast("Error adding item (check console)");
+  }
 }
 
 async function deleteItem(id) {
@@ -298,14 +310,19 @@ async function deleteItem(id) {
     return;
   }
 
-  if (navigator.onLine) {
-    await itemsCollection.doc(id).delete();
-  } else {
-    await idbDelete(id);
-  }
+  try {
+    if (navigator.onLine) {
+      await itemsCollection.doc(id).delete();
+    } else {
+      await idbDelete(id);
+    }
 
-  await loadItems();
-  showToast("Item deleted");
+    await loadItems();
+    showToast("Item deleted");
+  } catch (err) {
+    console.error("Error deleting item:", err);
+    showToast("Error deleting item (check console)");
+  }
 }
 
 
@@ -322,10 +339,16 @@ async function loadItems() {
     return;
   }
 
-  if (navigator.onLine) {
-    await loadItemsFromFirebase();
-  } else {
-    await loadItemsFromIndexedDB();
+  try {
+    if (navigator.onLine) {
+      await loadItemsFromFirebase();
+    } else {
+      await loadItemsFromIndexedDB();
+    }
+  } catch (err) {
+    console.error("Error loading items:", err);
+    showToast("Error loading items (check console)");
+    items = [];
   }
 
   renderItems();
@@ -338,12 +361,19 @@ async function loadItemsFromFirebase() {
     return;
   }
 
-  const snapshot = await itemsCollection
-    .where("userId", "==", user.uid)
-    .orderBy("timestamp")
-    .get();
+  try {
+    // Removed .orderBy("timestamp") to avoid index issues
+    const snapshot = await itemsCollection
+      .where("userId", "==", user.uid)
+      .get();
 
-  items = snapshot.docs.map(doc => doc.data());
+    items = snapshot.docs.map(doc => doc.data());
+    console.log("Loaded from Firestore:", items.length, "items");
+  } catch (err) {
+    console.error("Error loading items from Firestore:", err);
+    showToast("Error loading items (Firestore)");
+    items = [];
+  }
 }
 
 async function loadItemsFromIndexedDB() {
@@ -355,6 +385,7 @@ async function loadItemsFromIndexedDB() {
 
   const all = await idbGetAll();
   items = all.filter(i => i.userId === user.uid);
+  console.log("Loaded from IndexedDB:", items.length, "items");
 }
 
 
