@@ -125,7 +125,7 @@ auth.onAuthStateChanged(async (user) => {
     // Signed-in user
     isGuest = false;
     if (userInfo) {
-      userInfo.textContent = `Signed in as: ${user.email}`;
+      userInfo.textContent = "Signed in as: " + user.email;
     }
     await loadItems();
   } else {
@@ -216,7 +216,9 @@ if (signoutButton) {
       await auth.signOut();
       items = [];
       renderItems();
-      if (userInfo) userInfo.textContent = "Not signed in";
+      if (userInfo) {
+        userInfo.textContent = "Not signed in";
+      }
       showToast("Signed out");
     } catch (err) {
       console.error(err);
@@ -241,11 +243,14 @@ async function syncLocalToFirebase() {
   if (!user) return;
 
   const localItems = await idbGetAll();
-  const mine = localItems.filter(i => i.userId === user.uid);
+  const mine = localItems.filter(function (i) {
+    return i.userId === user.uid;
+  });
 
   if (mine.length === 0) return;
 
-  for (const item of mine) {
+  for (let i = 0; i < mine.length; i++) {
+    const item = mine[i];
     await itemsCollection.doc(item.id).set(item);
   }
 
@@ -265,8 +270,8 @@ async function addItem(name, locationText) {
   const user = auth.currentUser;
 
   const item = {
-    id,
-    name,
+    id: id,
+    name: name,
     location: locationText,
     timestamp: Date.now(),
     userId: user ? user.uid : null
@@ -296,7 +301,9 @@ async function deleteItem(id) {
 
   // Guest mode
   if (!user) {
-    items = items.filter(i => i.id !== id);
+    items = items.filter(function (i) {
+      return i.id !== id;
+    });
     renderItems();
     showToast("Item deleted");
     return;
@@ -346,12 +353,13 @@ async function loadItemsFromFirebase() {
   }
 
   try {
-    // No orderBy to avoid composite index issues
     const snapshot = await itemsCollection
       .where("userId", "==", user.uid)
       .get();
 
-    items = snapshot.docs.map(doc => doc.data());
+    items = snapshot.docs.map(function (doc) {
+      return doc.data();
+    });
     console.log("Loaded from Firestore:", items.length, "items");
   } catch (err) {
     console.error("Error loading from Firestore:", err);
@@ -367,7 +375,9 @@ async function loadItemsFromIndexedDB() {
   }
 
   const all = await idbGetAll();
-  items = all.filter(i => i.userId === user.uid);
+  items = all.filter(function (i) {
+    return i.userId === user.uid;
+  });
   console.log("Loaded from IndexedDB:", items.length, "items");
 }
 
@@ -387,18 +397,17 @@ function renderItems() {
     return;
   }
 
-  items.forEach(item => {
+  items.forEach(function (item) {
     const li = document.createElement("li");
 
-    li.innerHTML = `
-      <div class="item-main">
-        <span class="item-name">${item.name}</span>
-        <span class="item-meta">${item.location || "No location provided"}</span>
-      </div>
-      <button class="delete-btn" onclick="deleteItem('${item.id}')">
-        <img src="delete-icon.png" alt="Delete" />
-      </button>
-    `;
+    li.innerHTML =
+      '<div class="item-main">' +
+        '<span class="item-name">' + item.name + '</span>' +
+        '<span class="item-meta">' + (item.location || "No location provided") + '</span>' +
+      "</div>" +
+      '<button class="delete-btn" onclick="deleteItem(\'' + item.id + '\')">' +
+        '<img src="delete-icon.png" alt="Delete" />' +
+      "</button>";
 
     list.appendChild(li);
   });
@@ -414,7 +423,7 @@ window.deleteItem = deleteItem;
 
 const addItemButton = document.getElementById("addItemButton");
 if (addItemButton) {
-  addItemButton.addEventListener("click", async () => {
+  addItemButton.addEventListener("click", async function () {
     const nameInput = document.getElementById("itemName");
     const locationInput = document.getElementById("itemLocation");
 
@@ -434,7 +443,7 @@ if (addItemButton) {
 }
 
 if (syncButton) {
-  syncButton.addEventListener("click", async () => {
+  syncButton.addEventListener("click", async function () {
     if (!navigator.onLine) {
       showToast("Offline — Cannot sync");
       return;
@@ -454,24 +463,32 @@ const setReminderButton = document.getElementById("setReminderButton");
 const cancelReminderButton = document.getElementById("cancelReminderButton");
 
 if (setReminderButton) {
-  setReminderButton.addEventListener("click", () => {
-    const mins = parseInt(document.getElementById("reminderInterval").value, 10);
+  setReminderButton.addEventListener("click", function () {
+    const minsValue = document.getElementById("reminderInterval").value;
+    const mins = parseInt(minsValue, 10);
 
     if (isNaN(mins) || mins <= 0) {
       showToast("Enter a valid number");
       return;
     }
 
-    if (reminderIntervalId) clearInterval(reminderIntervalId);
+    if (reminderIntervalId) {
+      clearInterval(reminderIntervalId);
+    }
 
-    reminderIntervalId = setInterval(() => {
+    reminderIntervalId = setInterval(function () {
       if (items.length === 0) {
         alert("Check your pockets!");
         return;
       }
 
       const listText = items
-        .map(i => `${i.name}${i.location ? ` (${i.location})` : ""}`)
+        .map(function (i) {
+          if (i.location) {
+            return i.name + " (" + i.location + ")";
+          }
+          return i.name;
+        })
         .join(", ");
 
       alert("Reminder: " + listText);
@@ -482,7 +499,7 @@ if (setReminderButton) {
 }
 
 if (cancelReminderButton) {
-  cancelReminderButton.addEventListener("click", () => {
+  cancelReminderButton.addEventListener("click", function () {
     if (reminderIntervalId) {
       clearInterval(reminderIntervalId);
       reminderIntervalId = null;
@@ -502,7 +519,9 @@ function showToast(msg) {
 
   toast.textContent = msg;
   toast.classList.add("show");
-  setTimeout(() => toast.classList.remove("show"), 2200);
+  setTimeout(function () {
+    toast.classList.remove("show");
+  }, 2200);
 }
 
 
