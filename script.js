@@ -223,7 +223,7 @@ if (signoutButton) {
       showToast("Sign-out failed");
     }
   });
-});
+}
 
 
 /***************************************************************************
@@ -346,7 +346,7 @@ async function loadItemsFromFirebase() {
   }
 
   try {
-    // NOTE: no orderBy here to avoid composite index requirement
+    // No orderBy to avoid composite index issues
     const snapshot = await itemsCollection
       .where("userId", "==", user.uid)
       .get();
