@@ -362,7 +362,7 @@ async function loadItemsFromFirebase() {
   }
 
   try {
-    // Removed .orderBy("timestamp") to avoid index issues
+    // IMPORTANT: Removed .orderBy("timestamp") to avoid index issues
     const snapshot = await itemsCollection
       .where("userId", "==", user.uid)
       .get();
