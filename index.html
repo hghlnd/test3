@@ -21,30 +21,39 @@
       <h1>Check Your Pockets</h1>
     </div>
 
-    <!-- Auth Bar -->
-    <div class="auth-bar">
-      <div class="auth-top">
-        <span id="userInfo">Not signed in</span>
-      </div>
-
-      <div class="auth-controls">
-        <input type="email" id="loginEmail" placeholder="Email" />
-        <input type="password" id="loginPassword" placeholder="Password" />
-
-        <div class="auth-buttons">
-          <button id="signupButton" class="small-btn">Create Account</button>
-          <button id="signinButton" class="small-btn">Sign In</button>
-          <button id="guestButton" class="small-btn alt">Continue as Guest</button>
-          <button id="logoutButton" class="small-btn" style="display: none;">
-            Sign Out
-          </button>
-        </div>
-      </div>
-    </div>
-
     <p class="subtitle">
       Catalog items, remember where you left them, and get reminders to check.
     </p>
+
+    <!-- AUTH CARD -->
+    <div class="card auth-card">
+      <h2>Sign In</h2>
+      <p class="auth-info" id="userInfo">Not signed in</p>
+
+      <input
+        type="email"
+        id="loginEmail"
+        placeholder="Email"
+        autocomplete="username"
+      />
+      <input
+        type="password"
+        id="loginPassword"
+        placeholder="Password (min 6 characters)"
+        autocomplete="current-password"
+      />
+
+      <div class="auth-buttons">
+        <button id="signupButton" class="small-btn">Create Account</button>
+        <button id="signinButton" class="small-btn">Sign In</button>
+        <button id="guestButton" class="small-btn">Continue as Guest</button>
+        <button id="signoutButton" class="small-btn danger">Sign Out</button>
+      </div>
+
+      <p class="auth-note">
+        Guest mode lets you try the app without saving data.
+      </p>
+    </div>
 
     <!-- Status Bar -->
     <div class="status-bar">
@@ -91,8 +100,8 @@
 
   <!-- Firebase (v8 compat CDN) -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
 
   <!-- App Logic -->
   <script src="script.js"></script>
@@ -101,8 +110,7 @@
   <script>
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("./service-worker.js")
-        .then(() => console.log("Service Worker Registered"))
-        .catch(err => console.error("SW registration failed", err));
+        .then(() => console.log("Service Worker Registered"));
     }
   </script>
 </body>
