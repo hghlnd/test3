@@ -1,5 +1,5 @@
 // Bump the cache name so browsers grab the new assets
-const CACHE_NAME = 'pockets-cache-v4';
+const CACHE_NAME = 'pockets-cache-v5';
 
 const FILES_TO_CACHE = [
   './',
