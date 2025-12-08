@@ -221,11 +221,12 @@ if (signoutButton) {
       }
       showToast("Signed out");
     } catch (err) {
-      console.error(err);
+      console.error("Sign-out error:", err);
       showToast("Sign-out failed");
     }
   });
 }
+
 
 
 /***************************************************************************
