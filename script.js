@@ -471,7 +471,47 @@ if (setReminderButton) {
       }
 
       const listText = items
-        .map(i => `${i.name}${i.location ? ` (${i.location})` : ""}`)
+        .map(i => `${i.name}${i.location ? " (" + i.location + ")" : ""}`)
+        .join(", ");
+
+      alert("Reminder: " + listText);
+    }, mins * 60 * 1000);
+
+    showToast("Reminder set!");
+  });
+}
+
+if (cancelReminderButton) {
+  cancelReminderButton.addEventListener("click", () => {
+    if (reminderIntervalId) {
+      clearInterval(reminderIntervalId);
+      reminderIntervalId = null;
+      showToast("Reminder canceled");
+    }
+  });
+}
 
 
-::contentReference[oaicite:0]{index=0}
+/***************************************************************************
+ *  TOAST POPUP FUNCTION
+ ***************************************************************************/
+
+function showToast(msg) {
+  const toast = document.getElementById("toast");
+  if (!toast) return;
+
+  toast.textContent = msg;
+  toast.classList.add("show");
+  setTimeout(() => toast.classList.remove("show"), 2200);
+}
+
+
+/***************************************************************************
+ *  INITIAL APP SETUP
+ ***************************************************************************/
+
+(async function init() {
+  await initIndexedDB();
+  updateStatus();
+  await loadItems();
+})();
