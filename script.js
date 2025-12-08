@@ -13,9 +13,13 @@ firebase.initializeApp({
   measurementId: "G-4PWTYR2E9Q"
 });
 
+// Firebase services
 const db = firebase.firestore();
 const auth = firebase.auth();
-const itemsCollection = db.collection("items");
+
+let currentUser = null;
+let itemsCollection = null;
+let isGuest = false;   // guest mode flag
 
 
 /***************************************************************************
@@ -79,33 +83,13 @@ function idbClear() {
 
 
 /***************************************************************************
- *  GLOBAL STATE & ELEMENTS
- ***************************************************************************/
-
-let items = [];
-let isGuest = false;
-let reminderIntervalId = null;
-
-const statusText = document.getElementById("statusText");
-const syncButton = document.getElementById("syncButton");
-const userInfo = document.getElementById("userInfo");
-
-const loginEmailInput = document.getElementById("loginEmail");
-const loginPasswordInput = document.getElementById("loginPassword");
-const signupButton = document.getElementById("signupButton");
-const signinButton = document.getElementById("signinButton");
-const guestButton = document.getElementById("guestButton");
-const signoutButton = document.getElementById("signoutButton");
-
-console.log("script.js loaded");
-
-
-/***************************************************************************
  *  ONLINE / OFFLINE DETECTION
  ***************************************************************************/
 
 function updateStatus() {
+  const statusText = document.getElementById("statusText");
   if (!statusText) return;
+
   statusText.textContent = navigator.onLine ? "Online" : "Offline";
   statusText.style.color = navigator.onLine ? "green" : "red";
 }
@@ -118,112 +102,32 @@ window.addEventListener("offline", updateStatus);
  *  AUTH STATE LISTENER
  ***************************************************************************/
 
-auth.onAuthStateChanged(async (user) => {
-  console.log("Auth state changed, user:", user ? user.email : "none");
+auth.onAuthStateChanged(user => {
+  currentUser = user;
 
-  if (user) {
-    // Signed-in user
-    isGuest = false;
-    if (userInfo) {
-      userInfo.textContent = `Signed in as: ${user.email}`;
-    }
-    await loadItems();
+  if (currentUser) {
+    isGuest = false; // leaving guest mode
+    itemsCollection = db
+      .collection("users")
+      .doc(currentUser.uid)
+      .collection("items");
+
+    showToast("Signed in");
+    loadItems();
   } else {
-    // No Firebase user
-    if (!isGuest) {
-      // Fully signed out (not guest) – clear items
-      items = [];
-      renderItems();
-      if (userInfo) {
-        userInfo.textContent = "Not signed in";
-      }
-    } else {
-      // Guest mode active
-      if (userInfo) {
-        userInfo.textContent = "Guest mode (data not saved)";
-      }
-    }
-  }
-});
-
-
-/***************************************************************************
- *  AUTH BUTTON HANDLERS
- ***************************************************************************/
-
-// Create Account
-if (signupButton) {
-  signupButton.addEventListener("click", async () => {
-    const email = loginEmailInput.value.trim();
-    const password = loginPasswordInput.value;
-
-    if (!email || !password) {
-      showToast("Enter email and password");
-      return;
-    }
-
-    try {
-      await auth.createUserWithEmailAndPassword(email, password);
-      isGuest = false;
-      showToast("Account created");
-    } catch (err) {
-      console.error(err);
-      showToast(err.message || "Sign-up failed");
-    }
-  });
-}
-
-// Sign In
-if (signinButton) {
-  signinButton.addEventListener("click", async () => {
-    const email = loginEmailInput.value.trim();
-    const password = loginPasswordInput.value;
-
-    if (!email || !password) {
-      showToast("Enter email and password");
-      return;
-    }
-
-    try {
-      await auth.signInWithEmailAndPassword(email, password);
-      isGuest = false;
-      showToast("Signed in");
-    } catch (err) {
-      console.error(err);
-      showToast(err.message || "Sign-in failed");
-    }
-  });
-}
-
-// Continue as Guest
-if (guestButton) {
-  guestButton.addEventListener("click", () => {
-    isGuest = true;
+    itemsCollection = null;
     items = [];
     renderItems();
-    if (userInfo) {
-      userInfo.textContent = "Guest mode (data not saved)";
-    }
-    showToast("Guest mode enabled");
-  });
-}
 
-// Sign Out
-if (signoutButton) {
-  signoutButton.addEventListener("click", async () => {
-    try {
-      isGuest = false;
-      await auth.signOut();
+    // Only clear items if we are NOT in guest mode
+    if (!isGuest) {
       items = [];
       renderItems();
-      if (userInfo) userInfo.textContent = "Not signed in";
-      showToast("Signed out");
-    } catch (err) {
-      console.error("Sign-out error:", err);
-      showToast("Sign-out failed");
     }
-  });
-}
+  }
+
+  updateAuthUI();
+});
 
 
 /***************************************************************************
@@ -232,23 +136,27 @@ if (signoutButton) {
 
 async function handleReconnect() {
   updateStatus();
+  if (!currentUser || !itemsCollection) return;
+  if (!currentUser || !itemsCollection || isGuest) return;
+
   showToast("Back online — syncing...");
   await syncLocalToFirebase();
 }
 
 async function syncLocalToFirebase() {
-  const user = auth.currentUser;
-  if (!user) return;
+  if (!currentUser || !itemsCollection) return;
+  if (!currentUser || !itemsCollection || isGuest) return;
 
   const localItems = await idbGetAll();
-  const mine = localItems.filter(i => i.userId === user.uid);
+  const userItems = localItems.filter(item => item.userId === currentUser.uid);
 
-  if (mine.length === 0) return;
+  if (userItems.length === 0) return;
 
-  for (const item of mine) {
+  for (const item of userItems) {
     await itemsCollection.doc(item.id).set(item);
   }
 
+  // After syncing, reload from Firestore so both sides share Firestore IDs
   await idbClear();
   await loadItemsFromFirebase();
 
@@ -260,27 +168,40 @@ async function syncLocalToFirebase() {
  *  CRUD OPERATIONS
  ***************************************************************************/
 
+let items = [];
+
 async function addItem(name, locationText) {
+  if (!currentUser) {
+    showToast("Please sign in first");
+    return;
+  }
+
   const id = Date.now().toString();
-  const user = auth.currentUser;
 
   const item = {
     id,
+    userId: currentUser.uid,
+    userId: currentUser ? currentUser.uid : null,
     name,
     location: locationText,
-    timestamp: Date.now(),
-    userId: user ? user.uid : null
+    timestamp: Date.now()
   };
 
-  // Guest mode: keep items only in memory
-  if (!user) {
+  if (navigator.onLine && itemsCollection) {
+  // Guest mode: in-memory only, no saving
+  if (isGuest) {
     items.push(item);
     renderItems();
     showToast("Item added (guest — not saved)");
     return;
   }
 
-  // Signed-in user
+  // Require sign-in if not guest
+  if (!currentUser || !itemsCollection) {
+    showToast("Please sign in or use guest mode");
+    return;
+  }
+
   if (navigator.onLine) {
     await itemsCollection.doc(id).set(item);
   } else {
@@ -292,16 +213,21 @@ async function addItem(name, locationText) {
 }
 
 async function deleteItem(id) {
-  const user = auth.currentUser;
-
-  // Guest mode
-  if (!user) {
+  if (!currentUser) {
+  // Guest mode: remove from local array only
+  if (isGuest) {
     items = items.filter(i => i.id !== id);
     renderItems();
-    showToast("Item deleted");
+    showToast("Item deleted (guest)");
     return;
   }
 
+  if (!currentUser || !itemsCollection) {
+    showToast("Please sign in first");
+    return;
+  }
+
+  if (navigator.onLine && itemsCollection) {
   if (navigator.onLine) {
     await itemsCollection.doc(id).delete();
   } else {
@@ -318,18 +244,19 @@ async function deleteItem(id) {
  ***************************************************************************/
 
 async function loadItems() {
-  const user = auth.currentUser;
-
-  // Guest: just render in-memory items
-  if (!user) {
-    console.log("Loading items in guest mode");
+  if (isGuest) {
+    // In guest mode, items are only in memory
     renderItems();
     return;
   }
 
-  console.log("Loading items for user:", user.uid);
+  if (!currentUser) {
+    items = [];
+    renderItems();
+    return;
+  }
 
-  if (navigator.onLine) {
+  if (navigator.onLine && itemsCollection) {
     await loadItemsFromFirebase();
   } else {
     await loadItemsFromIndexedDB();
@@ -339,36 +266,21 @@ async function loadItems() {
 }
 
 async function loadItemsFromFirebase() {
-  const user = auth.currentUser;
-  if (!user) {
+  if (!itemsCollection) {
     items = [];
     return;
   }
-
-  try {
-    // No orderBy to avoid composite index issues
-    const snapshot = await itemsCollection
-      .where("userId", "==", user.uid)
-      .get();
-
-    items = snapshot.docs.map(doc => doc.data());
-    console.log("Loaded from Firestore:", items.length, "items");
-  } catch (err) {
-    console.error("Error loading from Firestore:", err);
-    items = [];
-  }
+  const snapshot = await itemsCollection.orderBy("timestamp").get();
+  items = snapshot.docs.map(doc => doc.data());
 }
 
 async function loadItemsFromIndexedDB() {
-  const user = auth.currentUser;
-  if (!user) {
+  if (!currentUser) {
     items = [];
     return;
   }
-
   const all = await idbGetAll();
-  items = all.filter(i => i.userId === user.uid);
-  console.log("Loaded from IndexedDB:", items.length, "items");
+  items = all.filter(item => item.userId === currentUser.uid);
 }
 
 
@@ -404,45 +316,160 @@ function renderItems() {
   });
 }
 
-// Expose deleteItem for inline onclick
-window.deleteItem = deleteItem;
-
 
 /***************************************************************************
  *  USER INPUT HANDLERS
  ***************************************************************************/
 
-const addItemButton = document.getElementById("addItemButton");
-if (addItemButton) {
-  addItemButton.addEventListener("click", async () => {
-    const nameInput = document.getElementById("itemName");
-    const locationInput = document.getElementById("itemLocation");
+document.getElementById("addItemButton").addEventListener("click", async () => {
+  const name = document.getElementById("itemName").value.trim();
+  const locationText = document.getElementById("itemLocation").value.trim();
 
-    const name = nameInput.value.trim();
-    const locationText = locationInput.value.trim();
+  if (!name) {
+    showToast("Please enter an item name");
+    return;
+  }
 
-    if (!name) {
-      showToast("Please enter an item name");
+  await addItem(name, locationText);
+
+  document.getElementById("itemName").value = "";
+  document.getElementById("itemLocation").value = "";
+});
+
+document.getElementById("syncButton")?.addEventListener("click", async () => {
+  if (isGuest) {
+    showToast("Guest mode — nothing to sync");
+    return;
+  }
+
+  if (!navigator.onLine) {
+    showToast("Offline — Cannot sync");
+    return;
+  }
+
+  if (!currentUser) {
+    showToast("Please sign in first");
+    return;
+  }
+
+  showToast("Syncing...");
+  await syncLocalToFirebase();
+});
+
+
+/***************************************************************************
+ *  AUTH BUTTON HANDLERS
+ ***************************************************************************/
+
+const loginBtn = document.getElementById("loginButton");
+const logoutBtn = document.getElementById("logoutButton");
+const loginEmailInput = document.getElementById("loginEmail");
+const loginPasswordInput = document.getElementById("loginPassword");
+const signupButton = document.getElementById("signupButton");
+const signinButton = document.getElementById("signinButton");
+const guestButton = document.getElementById("guestButton");
+const logoutButton = document.getElementById("logoutButton");
+
+if (signupButton) {
+  signupButton.addEventListener("click", async () => {
+    const email = loginEmailInput.value.trim();
+    const password = loginPasswordInput.value;
+
+    if (!email || !password) {
+      showToast("Enter email and password");
       return;
     }
 
-    await addItem(name, locationText);
-
-    nameInput.value = "";
-    locationInput.value = "";
+    try {
+      await auth.createUserWithEmailAndPassword(email, password);
+      isGuest = false;
+      showToast("Account created");
+    } catch (err) {
+      console.error(err);
+      showToast("Sign-up failed");
+    }
   });
 }
 
-if (syncButton) {
-  syncButton.addEventListener("click", async () => {
-    if (!navigator.onLine) {
-      showToast("Offline — Cannot sync");
+if (signinButton) {
+  signinButton.addEventListener("click", async () => {
+    const email = loginEmailInput.value.trim();
+    const password = loginPasswordInput.value;
+
+    if (!email || !password) {
+      showToast("Enter email and password");
       return;
     }
 
-    showToast("Syncing...");
-    await syncLocalToFirebase();
+if (loginBtn) {
+  loginBtn.addEventListener("click", async () => {
+    try {
+      const provider = new firebase.auth.GoogleAuthProvider();
+      await auth.signInWithPopup(provider);
+      // onAuthStateChanged will handle UI + data
+      await auth.signInWithEmailAndPassword(email, password);
+      isGuest = false;
+      showToast("Signed in");
+    } catch (err) {
+      console.error(err);
+      showToast("Sign-in failed");
+    }
   });
+}
+
+if (logoutBtn) {
+  logoutBtn.addEventListener("click", async () => {
+if (guestButton) {
+  guestButton.addEventListener("click", async () => {
+    isGuest = true;
+    if (auth.currentUser) {
+      await auth.signOut();
+    }
+    items = [];
+    renderItems();
+    showToast("Guest mode — items will not be saved");
+    updateAuthUI();
+  });
+}
+
+if (logoutButton) {
+  logoutButton.addEventListener("click", async () => {
+    isGuest = false;
+    try {
+      await auth.signOut();
+      // onAuthStateChanged will clear UI + data
+      showToast("Signed out");
+    } catch (err) {
+      console.error(err);
+      showToast("Sign-out failed");
+    }
+  });
+}
+
+function updateAuthUI() {
+  const userInfo = document.getElementById("userInfo");
+  if (!userInfo || !loginBtn || !logoutBtn) return;
+  if (!userInfo) return;
+
+  if (currentUser) {
+    userInfo.textContent =
+      currentUser.displayName || currentUser.email || "Signed in";
+    loginBtn.style.display = "none";
+    logoutBtn.style.display = "inline-block";
+    userInfo.textContent = currentUser.email || "Signed in";
+    logoutButton.style.display = "inline-block";
+    guestButton.style.display = "none";
+  } else if (isGuest) {
+    userInfo.textContent = "Guest mode (not saved)";
+    logoutButton.style.display = "none";
+    guestButton.style.display = "inline-block";
+  } else {
+    userInfo.textContent = "Not signed in";
+    loginBtn.style.display = "inline-block";
+    logoutBtn.style.display = "none";
+    logoutButton.style.display = "none";
+    guestButton.style.display = "inline-block";
+  }
 }
 
 
@@ -450,46 +477,41 @@ if (syncButton) {
  *  REMINDER SYSTEM
  ***************************************************************************/
 
-const setReminderButton = document.getElementById("setReminderButton");
-const cancelReminderButton = document.getElementById("cancelReminderButton");
+let reminderIntervalId = null;
 
-if (setReminderButton) {
-  setReminderButton.addEventListener("click", () => {
-    const mins = parseInt(document.getElementById("reminderInterval").value, 10);
+document.getElementById("setReminderButton").addEventListener("click", () => {
+  const mins = parseInt(document.getElementById("reminderInterval").value);
 
-    if (isNaN(mins) || mins <= 0) {
-      showToast("Enter a valid number");
+  if (isNaN(mins) || mins <= 0) {
+    showToast("Enter a valid number");
+    return;
+  }
+
+  if (reminderIntervalId) clearInterval(reminderIntervalId);
+
+  reminderIntervalId = setInterval(() => {
+    if (items.length === 0) {
+      alert("Check your pockets!");
       return;
     }
 
-    if (reminderIntervalId) clearInterval(reminderIntervalId);
+    const listText = items
+      .map(i => `${i.name}${i.location ? ` (${i.location})` : ""}`)
+      .join(", ");
 
-    reminderIntervalId = setInterval(() => {
-      if (items.length === 0) {
-        alert("Check your pockets!");
-        return;
-      }
+    alert("Reminder: " + listText);
+  }, mins * 60 * 1000);
 
-      const listText = items
-        .map(i => `${i.name}${i.location ? " (" + i.location + ")" : ""}`)
-        .join(", ");
+  showToast("Reminder set!");
+});
 
-      alert("Reminder: " + listText);
-    }, mins * 60 * 1000);
-
-    showToast("Reminder set!");
-  });
-}
-
-if (cancelReminderButton) {
-  cancelReminderButton.addEventListener("click", () => {
-    if (reminderIntervalId) {
-      clearInterval(reminderIntervalId);
-      reminderIntervalId = null;
-      showToast("Reminder canceled");
-    }
-  });
-}
+document.getElementById("cancelReminderButton")?.addEventListener("click", () => {
+  if (reminderIntervalId) {
+    clearInterval(reminderIntervalId);
+    reminderIntervalId = null;
+    showToast("Reminder canceled");
+  }
+});
 
 
 /***************************************************************************
@@ -513,5 +535,6 @@ function showToast(msg) {
 (async function init() {
   await initIndexedDB();
   updateStatus();
-  await loadItems();
+  // auth.onAuthStateChanged will call loadItems when logged in
+  // auth.onAuthStateChanged will handle loading user data
 })();
