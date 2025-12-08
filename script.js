@@ -40,10 +40,7 @@ function initIndexedDB() {
       resolve();
     };
 
-    openReq.onerror = (err) => {
-      console.error("IndexedDB open error:", err);
-      reject(err);
-    };
+    openReq.onerror = reject;
   });
 }
 
@@ -100,6 +97,8 @@ const signinButton = document.getElementById("signinButton");
 const guestButton = document.getElementById("guestButton");
 const signoutButton = document.getElementById("signoutButton");
 
+console.log("script.js loaded");
+
 
 /***************************************************************************
  *  ONLINE / OFFLINE DETECTION
@@ -120,6 +119,8 @@ window.addEventListener("offline", updateStatus);
  ***************************************************************************/
 
 auth.onAuthStateChanged(async (user) => {
+  console.log("Auth state changed, user:", user ? user.email : "none");
+
   if (user) {
     // Signed-in user
     isGuest = false;
@@ -166,7 +167,7 @@ if (signupButton) {
       isGuest = false;
       showToast("Account created");
     } catch (err) {
-      console.error("Sign-up error:", err);
+      console.error(err);
       showToast(err.message || "Sign-up failed");
     }
   });
@@ -188,7 +189,7 @@ if (signinButton) {
       isGuest = false;
       showToast("Signed in");
     } catch (err) {
-      console.error("Sign-in error:", err);
+      console.error(err);
       showToast(err.message || "Sign-in failed");
     }
   });
@@ -218,7 +219,7 @@ if (signoutButton) {
       if (userInfo) userInfo.textContent = "Not signed in";
       showToast("Signed out");
     } catch (err) {
-      console.error("Sign-out error:", err);
+      console.error(err);
       showToast("Sign-out failed");
     }
   });
@@ -239,24 +240,19 @@ async function syncLocalToFirebase() {
   const user = auth.currentUser;
   if (!user) return;
 
-  try {
-    const localItems = await idbGetAll();
-    const mine = localItems.filter(i => i.userId === user.uid);
+  const localItems = await idbGetAll();
+  const mine = localItems.filter(i => i.userId === user.uid);
 
-    if (mine.length === 0) return;
+  if (mine.length === 0) return;
 
-    for (const item of mine) {
-      await itemsCollection.doc(item.id).set(item);
-    }
-
-    await idbClear();
-    await loadItemsFromFirebase();
-
-    showToast("Sync complete!");
-  } catch (err) {
-    console.error("Sync error:", err);
-    showToast("Sync failed (check console)");
+  for (const item of mine) {
+    await itemsCollection.doc(item.id).set(item);
   }
+
+  await idbClear();
+  await loadItemsFromFirebase();
+
+  showToast("Sync complete!");
 }
 
 
@@ -284,19 +280,15 @@ async function addItem(name, locationText) {
     return;
   }
 
-  try {
-    if (navigator.onLine) {
-      await itemsCollection.doc(id).set(item);
-    } else {
-      await idbAdd(item);
-    }
-
-    await loadItems();
-    showToast("Item added!");
-  } catch (err) {
-    console.error("Error adding item:", err);
-    showToast("Error adding item (check console)");
+  // Signed-in user
+  if (navigator.onLine) {
+    await itemsCollection.doc(id).set(item);
+  } else {
+    await idbAdd(item);
   }
+
+  await loadItems();
+  showToast("Item added!");
 }
 
 async function deleteItem(id) {
@@ -310,19 +302,14 @@ async function deleteItem(id) {
     return;
   }
 
-  try {
-    if (navigator.onLine) {
-      await itemsCollection.doc(id).delete();
-    } else {
-      await idbDelete(id);
-    }
-
-    await loadItems();
-    showToast("Item deleted");
-  } catch (err) {
-    console.error("Error deleting item:", err);
-    showToast("Error deleting item (check console)");
+  if (navigator.onLine) {
+    await itemsCollection.doc(id).delete();
+  } else {
+    await idbDelete(id);
   }
+
+  await loadItems();
+  showToast("Item deleted");
 }
 
 
@@ -335,20 +322,17 @@ async function loadItems() {
 
   // Guest: just render in-memory items
   if (!user) {
+    console.log("Loading items in guest mode");
     renderItems();
     return;
   }
 
-  try {
-    if (navigator.onLine) {
-      await loadItemsFromFirebase();
-    } else {
-      await loadItemsFromIndexedDB();
-    }
-  } catch (err) {
-    console.error("Error loading items:", err);
-    showToast("Error loading items (check console)");
-    items = [];
+  console.log("Loading items for user:", user.uid);
+
+  if (navigator.onLine) {
+    await loadItemsFromFirebase();
+  } else {
+    await loadItemsFromIndexedDB();
   }
 
   renderItems();
@@ -362,7 +346,7 @@ async function loadItemsFromFirebase() {
   }
 
   try {
-    // IMPORTANT: Removed .orderBy("timestamp") to avoid index issues
+    // NOTE: no orderBy here to avoid composite index requirement
     const snapshot = await itemsCollection
       .where("userId", "==", user.uid)
       .get();
@@ -370,8 +354,7 @@ async function loadItemsFromFirebase() {
     items = snapshot.docs.map(doc => doc.data());
     console.log("Loaded from Firestore:", items.length, "items");
   } catch (err) {
-    console.error("Error loading items from Firestore:", err);
-    showToast("Error loading items (Firestore)");
+    console.error("Error loading from Firestore:", err);
     items = [];
   }
 }
