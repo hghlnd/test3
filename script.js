@@ -88,6 +88,9 @@ let items = [];
 let isGuest = false;
 let reminderIntervalId = null;
 
+// Install prompt
+let deferredPrompt = null;
+
 const statusText = document.getElementById("statusText");
 const syncButton = document.getElementById("syncButton");
 const userInfo = document.getElementById("userInfo");
@@ -99,18 +102,54 @@ const signinButton = document.getElementById("signinButton");
 const guestButton = document.getElementById("guestButton");
 const signoutButton = document.getElementById("signoutButton");
 
+const installBanner = document.getElementById("installBanner");
+const installButton = document.getElementById("installButton");
+
 /***************************************************************************
  *  ONLINE / OFFLINE DETECTION
  ***************************************************************************/
 
 function updateStatus() {
   if (!statusText) return;
-  statusText.textContent = navigator.onLine ? "Online" : "Offline";
-  statusText.style.color = navigator.onLine ? "green" : "red";
+  const online = navigator.onLine;
+  statusText.textContent = online ? "Online" : "Offline";
+  statusText.style.backgroundColor = online ? "#c8e6c9" : "#ffccbc";
+  statusText.style.color = online ? "#2e7d32" : "#d84315";
 }
 
 window.addEventListener("online", handleReconnect);
 window.addEventListener("offline", updateStatus);
+
+/***************************************************************************
+ *  INSTALL PROMPT (PWA)
+ ***************************************************************************/
+
+window.addEventListener("beforeinstallprompt", (e) => {
+  // Prevent the default mini-infobar
+  e.preventDefault();
+  deferredPrompt = e;
+
+  if (installBanner) {
+    installBanner.style.display = "flex";
+  }
+});
+
+if (installButton) {
+  installButton.addEventListener("click", async () => {
+    if (!deferredPrompt) return;
+
+    installBanner.style.display = "none";
+    deferredPrompt.prompt();
+    const choice = await deferredPrompt.userChoice;
+    deferredPrompt = null;
+
+    if (choice.outcome === "accepted") {
+      showToast("App installation started");
+    } else {
+      showToast("You can install this app later from your browser menu");
+    }
+  });
+}
 
 /***************************************************************************
  *  AUTH STATE LISTENER
@@ -248,7 +287,7 @@ async function syncLocalToFirebase() {
   for (const item of mine) {
     try {
       if (item.id && item.id.startsWith("local-")) {
-        // This was created offline – let Firestore generate a real ID
+        // Created offline – let Firestore generate a real ID
         const { id: _, ...dataWithoutId } = item;
         const docRef = await itemsCollection.add(dataWithoutId);
         const newItem = { ...item, id: docRef.id };
