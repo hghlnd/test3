@@ -5,97 +5,133 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Check Your Pockets</title>
 
+  <!-- Materialize CSS (for basic layout & typography) -->
+  <link
+    rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css"
+    integrity="sha512-GKv0v7x7U6QdsTQFKhXzfIuRQNn1v4C3d4VZk7dV0wOYsVY2fO5qO8cIszsysFlI1N8ISFPCJ4nq6xwQ6p+0ag=="
+    crossorigin="anonymous"
+    referrerpolicy="no-referrer"
+  />
+
   <!-- Styles & Manifest -->
   <link rel="stylesheet" href="style.css" />
   <link rel="manifest" href="manifest.json" />
-  <meta name="theme-color" content="#007bff" />
+  <meta name="theme-color" content="#fb8c00" />
   <link rel="icon" href="app-icon.png" type="image/png" />
 </head>
 
 <body>
-  <div class="container">
+  <div class="app-wrapper">
+    <div class="container app-container z-depth-1">
 
-    <!-- Brand Header -->
-    <div class="header-brand">
-      <img src="app-icon.png" class="brand-logo" alt="App Logo" />
-      <h1>Check Your Pockets</h1>
-    </div>
-
-    <p class="subtitle">
-      Catalog items, remember where you left them, and get reminders to check.
-    </p>
-
-    <!-- AUTH CARD -->
-    <div class="card auth-card">
-      <h2>Sign In</h2>
-      <p class="auth-info" id="userInfo">Not signed in</p>
-
-      <input
-        type="email"
-        id="loginEmail"
-        placeholder="Email"
-        autocomplete="username"
-      />
-      <input
-        type="password"
-        id="loginPassword"
-        placeholder="Password (min 6 characters)"
-        autocomplete="current-password"
-      />
-
-      <div class="auth-buttons">
-        <button id="signupButton" class="small-btn">Create Account</button>
-        <button id="signinButton" class="small-btn">Sign In</button>
-        <button id="guestButton" class="small-btn">Continue as Guest</button>
-        <button id="signoutButton" class="small-btn danger">Sign Out</button>
+      <!-- Install Banner (shown when PWA install is available) -->
+      <div id="installBanner" class="install-banner">
+        <span class="install-text">
+          Add <strong>Check Your Pockets</strong> to your home screen for quick access.
+        </span>
+        <button id="installButton" class="small-btn accent">
+          Install
+        </button>
       </div>
 
-      <p class="auth-note">
-        Guest mode lets you try the app without saving data.
+      <!-- Brand Header -->
+      <div class="header-brand">
+        <img src="app-icon.png" class="brand-logo" alt="App Logo" />
+        <h1>Check Your Pockets</h1>
+      </div>
+
+      <p class="subtitle">
+        Catalog items, remember where you left them, and get reminders to check them before you go.
       </p>
-    </div>
 
-    <!-- Status Bar -->
-    <div class="status-bar">
-      <span id="statusText">Checking connection...</span>
-      <button id="syncButton" class="small-btn">Sync Now</button>
-      <span id="syncStatus"></span>
-    </div>
+      <!-- AUTH CARD -->
+      <div class="card auth-card white">
+        <h2>Sign In</h2>
+        <p class="auth-info" id="userInfo">Not signed in</p>
 
-    <!-- New Item -->
-    <div class="card">
-      <h2>New Item</h2>
-      <input type="text" id="itemName" placeholder="Item name (e.g., Wallet)" />
-      <input type="text" id="itemLocation" placeholder="Last location (e.g., Desk drawer)" />
-      <button id="addItemButton" class="icon-btn">
-        <img src="add-icon.png" class="icon" alt="Add" /> Add Item
-      </button>
-    </div>
+        <div class="input-field">
+          <input
+            type="email"
+            id="loginEmail"
+            placeholder="Email"
+            autocomplete="username"
+          />
+        </div>
 
-    <!-- Item List -->
-    <div class="card">
-      <h2>Items</h2>
-      <ul id="itemList"></ul>
-    </div>
+        <div class="input-field">
+          <input
+            type="password"
+            id="loginPassword"
+            placeholder="Password (min 6 characters)"
+            autocomplete="current-password"
+          />
+        </div>
 
-    <!-- Reminder -->
-    <div class="card">
-      <h2>Reminder</h2>
-      <label for="reminderInterval">Reminder Interval (minutes):</label>
-      <input type="number" id="reminderInterval" min="1" value="10" />
+        <div class="auth-buttons">
+          <button id="signupButton" class="small-btn">Create Account</button>
+          <button id="signinButton" class="small-btn primary">Sign In</button>
+          <button id="guestButton" class="small-btn outline">Continue as Guest</button>
+          <button id="signoutButton" class="small-btn danger">Sign Out</button>
+        </div>
 
-      <div class="reminder-buttons">
-        <button id="setReminderButton" class="icon-btn warn">
-          <img src="reminder-icon.png" class="icon" alt="Reminder" /> Set Reminder
-        </button>
-        <button id="cancelReminderButton" class="small-btn">
-          Cancel Reminder
+        <p class="auth-note">
+          Guest mode lets you try the app without saving data.
+        </p>
+      </div>
+
+      <!-- Status Bar -->
+      <div class="status-bar card white">
+        <div class="status-main">
+          <span id="statusText" class="status-pill">Checking connection...</span>
+        </div>
+        <div class="status-actions">
+          <button id="syncButton" class="small-btn">Sync Now</button>
+          <span id="syncStatus" class="sync-status-text"></span>
+        </div>
+      </div>
+
+      <!-- New Item -->
+      <div class="card white">
+        <h2>New Item</h2>
+        <div class="input-field">
+          <input type="text" id="itemName" placeholder="Item name (e.g., Wallet)" />
+        </div>
+        <div class="input-field">
+          <input type="text" id="itemLocation" placeholder="Last location (e.g., Desk drawer)" />
+        </div>
+        <button id="addItemButton" class="icon-btn">
+          <img src="add-icon.png" class="icon" alt="Add" /> Add Item
         </button>
       </div>
-    </div>
 
-    <!-- Toast -->
-    <div id="toast"></div>
+      <!-- Item List -->
+      <div class="card white">
+        <h2>Items</h2>
+        <ul id="itemList"></ul>
+      </div>
+
+      <!-- Reminder -->
+      <div class="card white">
+        <h2>Reminder</h2>
+        <label for="reminderInterval" class="reminder-label">
+          Reminder Interval (minutes)
+        </label>
+        <input type="number" id="reminderInterval" min="1" value="10" />
+
+        <div class="reminder-buttons">
+          <button id="setReminderButton" class="icon-btn warn">
+            <img src="reminder-icon.png" class="icon" alt="Reminder" /> Set Reminder
+          </button>
+          <button id="cancelReminderButton" class="small-btn outline">
+            Cancel Reminder
+          </button>
+        </div>
+      </div>
+
+      <!-- Toast -->
+      <div id="toast"></div>
+    </div>
   </div>
 
   <!-- Firebase (v8 compat CDN) -->
@@ -104,16 +140,14 @@
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
 
   <!-- App Logic -->
-  <script src="script.js?v=2"></script>
+  <script src="script.js"></script>
 
   <!-- Service Worker -->
   <script>
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("./service-worker.js")
-        .then(() => console.log("Service Worker Registered"))
-        .catch(err => console.error("SW registration failed:", err));
+        .then(() => console.log("Service Worker Registered"));
     }
   </script>
 </body>
 </html>
-
