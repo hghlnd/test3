@@ -1,11 +1,11 @@
-// Bump the cache name so browsers grab the new assets
+// Bump the cache name so browsers grab the new assets (including updated JS)
 const CACHE_NAME = 'pockets-cache-v5';
 
 const FILES_TO_CACHE = [
   './',
   './index.html',
   './style.css',
-  './script.js',
+  './script.js?v=2',
   './manifest.json',
 
   './icon-192x192.png',
