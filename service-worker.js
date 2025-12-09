@@ -1,11 +1,11 @@
-// Bump the cache name so browsers grab the new assets (including updated JS)
+// Bump the cache name so browsers grab the new assets
 const CACHE_NAME = 'pockets-cache-v6';
 
 const FILES_TO_CACHE = [
   './',
   './index.html',
-  './style.css',
-  './script.js?v=2',
+  './style.css?v=3',
+  './script.js',
   './manifest.json',
 
   './icon-192x192.png',
@@ -14,22 +14,24 @@ const FILES_TO_CACHE = [
   './app-icon.png',
   './add-icon.png',
   './delete-icon.png',
-  './reminder-icon.png'
-  // NOTE: we are NOT caching Firebase scripts here; they can be loaded from network
+  './reminder-icon.png',
+
+  'https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js',
+  'https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js',
+  'https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js'
 ];
 
-self.addEventListener('install', event => {
-  self.skipWaiting();
+self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => cache.addAll(FILES_TO_CACHE))
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(FILES_TO_CACHE))
   );
 });
 
-self.addEventListener('activate', event => {
+self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then(keys =>
+    caches.keys().then((keys) =>
       Promise.all(
-        keys.map(key => {
+        keys.map((key) => {
           if (key !== CACHE_NAME) {
             return caches.delete(key);
           }
@@ -37,41 +39,25 @@ self.addEventListener('activate', event => {
       )
     )
   );
-  self.clients.claim();
 });
 
-self.addEventListener('fetch', event => {
-  // Only handle GET requests
-  if (event.request.method !== 'GET') {
-    return;
-  }
+// Simple cache-first for static assets + fallback to index.html for navigation
+self.addEventListener('fetch', (event) => {
+  const req = event.request;
 
-  const url = new URL(event.request.url);
-
-  // Only cache same-origin requests (your app files)
-  if (url.origin !== self.location.origin) {
-    // Let the browser handle Firebase & other external requests
-    return;
-  }
+  // Only handle GET
+  if (req.method !== 'GET') return;
 
   event.respondWith(
-    caches.match(event.request).then(cached => {
-      if (cached) {
-        return cached;
-      }
+    caches.match(req).then((cached) => {
+      if (cached) return cached;
 
-      // Not in cache: go to network and optionally cache it
-      return fetch(event.request).then(response => {
-        // only cache successful basic responses
-        if (!response || response.status !== 200 || response.type !== 'basic') {
-          return response;
+      return fetch(req).catch(() => {
+        // For navigation requests, fallback to index.html
+        if (req.mode === 'navigate') {
+          return caches.match('./index.html');
         }
-        const respClone = response.clone();
-        caches.open(CACHE_NAME).then(cache => cache.put(event.request, respClone));
-        return response;
-      }).catch(() => {
-        // Fallback to index if offline and request not in cache
-        return caches.match('./index.html');
+        return new Response('Offline', { status: 503, statusText: 'Offline' });
       });
     })
   );
