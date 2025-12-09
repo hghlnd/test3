@@ -1,20 +1,40 @@
 /* -----------------------------
-   GLOBAL STYLES
+   RESET / GLOBAL
 ------------------------------ */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
 body {
   font-family: 'Inter', Arial, sans-serif;
-  background: linear-gradient(135deg, #eef3ff, #f8fbff);
+  background: linear-gradient(135deg, #fff3e0, #ffffff);
   margin: 0;
   padding: 0;
+  min-height: 100vh;
   display: flex;
   justify-content: center;
+  align-items: flex-start;
   color: #333;
 }
 
-.container {
-  max-width: 760px;
+/* Wrapper so the card sits nicely centered on large screens */
+.app-wrapper {
   width: 100%;
-  padding: 30px 20px;
+  padding: 16px;
+  display: flex;
+  justify-content: center;
+}
+
+/* Main app container */
+.app-container {
+  max-width: 900px;
+  width: 100%;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 24px;
+  padding: 24px 20px 28px;
+  box-shadow: 0px 14px 30px rgba(0, 0, 0, 0.08);
 }
 
 /* -----------------------------
@@ -22,102 +42,119 @@ body {
 ------------------------------ */
 .header-brand {
   text-align: center;
-  margin-bottom: 25px;
+  margin-bottom: 18px;
 }
 
 .brand-logo {
-  width: 130px;
+  width: 110px;
   margin-bottom: 10px;
   filter: drop-shadow(0px 2px 6px rgba(0,0,0,0.2));
 }
 
 h1 {
-  font-size: 2.4rem;
+  font-size: 2.2rem;
   font-weight: 700;
-  margin: 5px 0 10px;
+  margin: 5px 0 8px;
+  color: #e65100;
 }
 
 .subtitle {
-  font-size: 1.1rem;
+  font-size: 1rem;
   color: #555;
   text-align: center;
-  max-width: 600px;
-  margin: 0 auto 20px;
+  max-width: 650px;
+  margin: 0 auto 18px;
 }
 
 /* -----------------------------
-   AUTH BAR
+   INSTALL BANNER
 ------------------------------ */
-.auth-bar {
-  background: rgba(255, 255, 255, 0.85);
-  border-radius: 16px;
-  padding: 14px 16px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.06);
-  margin-bottom: 16px;
-}
-
-.auth-top {
-  margin-bottom: 8px;
-}
-
-.auth-controls {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+.install-banner {
+  display: none; /* shown via JS when beforeinstallprompt fires */
   align-items: center;
-}
-
-.auth-controls input {
-  flex: 1 1 150px;
-  margin: 0;
-}
-
-.auth-buttons {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-/* alt style button (guest) */
-.small-btn.alt {
+  justify-content: space-between;
+  gap: 12px;
   background: #ffe0b2;
+  border-radius: 16px;
+  padding: 10px 14px;
+  margin-bottom: 14px;
 }
 
-.small-btn.alt:hover {
-  background: #ffcc80;
+.install-text {
+  font-size: 0.95rem;
 }
 
 /* -----------------------------
    STATUS BAR
 ------------------------------ */
 .status-bar {
-  text-align: center;
-  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  margin: 12px 0 18px;
 }
 
-#statusText {
-  font-weight: bold;
+.status-main {
+  display: flex;
+  align-items: center;
+}
+
+.status-pill {
+  font-weight: 600;
+  font-size: 0.9rem;
   padding: 4px 12px;
-  border-radius: 12px;
+  border-radius: 999px;
+  background: #ffe0b2;
+  color: #e65100;
+}
+
+.status-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sync-status-text {
+  font-size: 0.85rem;
+  color: #777;
 }
 
 /* -----------------------------
    CARDS
 ------------------------------ */
 .card {
-  background: rgba(255, 255, 255, 0.8);
-  padding: 25px;
+  background: rgba(255, 255, 255, 0.95) !important;
+  padding: 20px 18px;
   border-radius: 20px;
-  margin: 18px 0;
+  margin: 14px 0;
   box-shadow: 0px 8px 22px rgba(0, 0, 0, 0.07);
-  backdrop-filter: blur(8px);
 }
 
 h2 {
   margin-top: 0;
-  font-size: 1.5rem;
+  font-size: 1.4rem;
   font-weight: 600;
-  margin-bottom: 15px;
+  margin-bottom: 12px;
+}
+
+/* Auth card extras */
+.auth-card {
+  margin-top: 4px;
+}
+
+.auth-info {
+  font-size: 0.95rem;
+  margin-bottom: 10px;
+  color: #666;
+}
+
+.auth-note {
+  font-size: 0.85rem;
+  color: #777;
+  margin-top: 10px;
 }
 
 /* -----------------------------
@@ -125,66 +162,130 @@ h2 {
 ------------------------------ */
 input {
   width: 100%;
-  padding: 14px;
+  padding: 12px 12px;
   border-radius: 12px;
-  border: 1px solid #ccc;
-  margin: 12px 0;
-  font-size: 1rem;
+  border: 1px solid #ddd;
+  margin: 8px 0;
+  font-size: 0.95rem;
   transition: border 0.2s, box-shadow 0.2s;
 }
 
 input:focus {
   outline: none;
-  border-color: #007bff;
-  box-shadow: 0 0 8px rgba(0, 123, 255, 0.2);
+  border-color: #fb8c00;
+  box-shadow: 0 0 8px rgba(251, 140, 0, 0.25);
 }
 
 /* -----------------------------
-   BUTTONS (BRANDED)
+   BUTTONS
 ------------------------------ */
+.small-btn {
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: none;
+  background: #eeeeee;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: 0.2s;
+  white-space: nowrap;
+}
+
+.small-btn:hover {
+  background: #e0e0e0;
+}
+
+.small-btn.primary {
+  background: #fb8c00;
+  color: #ffffff;
+}
+
+.small-btn.primary:hover {
+  background: #f57c00;
+}
+
+.small-btn.accent {
+  background: #ffa726;
+  color: #ffffff;
+}
+
+.small-btn.accent:hover {
+  background: #ff9800;
+}
+
+.small-btn.danger {
+  background: #e57373;
+  color: #ffffff;
+}
+
+.small-btn.danger:hover {
+  background: #ef5350;
+}
+
+.small-btn.outline {
+  background: transparent;
+  border: 1px solid #fb8c00;
+  color: #fb8c00;
+}
+
+.small-btn.outline:hover {
+  background: rgba(251, 140, 0, 0.08);
+}
+
+/* Icon button (main CTA) */
 .icon-btn {
-  background: #007bff;
+  background: #fb8c00;
   color: white;
   border: none;
-  padding: 14px 18px;
-  font-size: 1.1rem;
+  padding: 12px 16px;
+  font-size: 1rem;
   border-radius: 14px;
   cursor: pointer;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 10px;
   transition: 0.2s;
 }
 
 .icon-btn:hover {
-  background: #005fcc;
-  transform: translateY(-2px);
+  background: #f57c00;
+  transform: translateY(-1px);
 }
 
 .icon-btn.warn {
-  background: #ff9800;
+  background: #ffb300;
 }
 
 .icon-btn.warn:hover {
-  background: #e68900;
+  background: #ffa000;
 }
 
 .icon {
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
 }
 
-.small-btn {
-  padding: 6px 12px;
-  border-radius: 8px;
-  border: none;
-  background: #e6e6e6;
-  cursor: pointer;
-  transition: 0.2s;
+/* Auth buttons layout */
+.auth-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
 }
 
-.small-btn:hover {
-  background: #d3d3d3;
+/* Reminder buttons layout */
+.reminder-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.reminder-label {
+  display: block;
+  font-size: 0.9rem;
+  font-weight: 500;
+  margin-bottom: 4px;
 }
 
 /* -----------------------------
@@ -199,12 +300,13 @@ input:focus {
 #itemList li {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   background: white;
-  padding: 16px;
-  margin: 10px 0;
+  padding: 12px 12px;
+  margin: 8px 0;
   border-radius: 14px;
-  box-shadow: 0px 6px 14px rgba(0,0,0,0.05);
-  animation: fadeIn 0.3s ease-in-out;
+  box-shadow: 0px 6px 14px rgba(0,0,0,0.04);
+  animation: fadeIn 0.25s ease-in-out;
 }
 
 .item-main {
@@ -213,19 +315,17 @@ input:focus {
 }
 
 .item-name {
-  font-size: 1.2rem;
-  font-weight: bold;
-  margin-bottom: 4px;
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 3px;
 }
 
 .item-meta {
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   color: #777;
 }
 
-/* -----------------------------
-   DELETE BUTTON (UPDATED)
------------------------------- */
+/* Delete Button */
 .delete-btn {
   background: none;
   border: none;
@@ -236,8 +336,8 @@ input:focus {
 }
 
 .delete-btn img {
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
   filter: brightness(0) saturate(100%) invert(35%) sepia(94%) saturate(5690%) hue-rotate(353deg) brightness(97%) contrast(98%);
   transition: transform 0.2s ease;
 }
@@ -247,32 +347,22 @@ input:focus {
 }
 
 /* -----------------------------
-   REMINDER BUTTON ROW
------------------------------- */
-.reminder-buttons {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: center;
-  margin-top: 10px;
-}
-
-/* -----------------------------
    TOAST
 ------------------------------ */
 #toast {
   visibility: hidden;
-  background: #333;
+  background: #424242;
   color: white;
   position: fixed;
-  padding: 16px 24px;
-  border-radius: 12px;
+  padding: 12px 18px;
+  border-radius: 999px;
   left: 50%;
-  bottom: 40px;
+  bottom: 32px;
   transform: translateX(-50%);
   opacity: 0;
   transition: opacity .4s;
-  font-size: 1rem;
+  font-size: 0.95rem;
+  z-index: 9999;
 }
 
 #toast.show {
@@ -280,8 +370,63 @@ input:focus {
   opacity: 1;
 }
 
-/* Fade-in animation */
+/* -----------------------------
+   ANIMATIONS
+------------------------------ */
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(5px); }
+  from { opacity: 0; transform: translateY(4px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+/* -----------------------------
+   RESPONSIVE
+------------------------------ */
+@media (max-width: 600px) {
+  .app-container {
+    padding: 18px 14px 22px;
+    border-radius: 20px;
+  }
+
+  h1 {
+    font-size: 1.8rem;
+  }
+
+  .card {
+    padding: 16px 14px;
+  }
+
+  .status-bar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .status-actions {
+    width: 100%;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .auth-buttons {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .auth-buttons .small-btn,
+  .reminder-buttons .small-btn,
+  .reminder-buttons .icon-btn {
+    width: 100%;
+    text-align: center;
+    justify-content: center;
+  }
+
+  .install-banner {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+@media (min-width: 900px) {
+  .app-container {
+    padding: 28px 32px 32px;
+  }
 }
