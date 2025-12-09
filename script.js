@@ -232,6 +232,10 @@ async function handleReconnect() {
   await syncLocalToFirebase();
 }
 
+/**
+ * Sync local (offline) items to Firestore.
+ * Firebase will generate *new* IDs for any "local-" items.
+ */
 async function syncLocalToFirebase() {
   const user = auth.currentUser;
   if (!user) return;
@@ -242,11 +246,25 @@ async function syncLocalToFirebase() {
   if (mine.length === 0) return;
 
   for (const item of mine) {
-    await itemsCollection.doc(item.id).set(item);
+    try {
+      if (item.id && item.id.startsWith("local-")) {
+        // This was created offline – let Firestore generate a real ID
+        const { id: _, ...dataWithoutId } = item;
+        const docRef = await itemsCollection.add(dataWithoutId);
+        const newItem = { ...item, id: docRef.id };
+        await docRef.set(newItem);
+      } else {
+        // Already has a Firestore ID – upsert
+        await itemsCollection.doc(item.id).set(item, { merge: true });
+      }
+    } catch (err) {
+      console.error("Error syncing item:", item.id, err);
+    }
   }
 
-  await idbClear();
+  // After syncing, refresh from Firestore and mirror to IndexedDB
   await loadItemsFromFirebase();
+  await refreshIndexedDBCache();
 
   showToast("Sync complete!");
 }
@@ -255,33 +273,68 @@ async function syncLocalToFirebase() {
  *  CRUD OPERATIONS
  ***************************************************************************/
 
+/**
+ * Add item.
+ * If signed in & ONLINE → Firestore generates ID (no duplication).
+ * If signed in & OFFLINE → store in IndexedDB with "local-" ID.
+ * Guest → in-memory only, no persistence.
+ */
 async function addItem(name, locationText) {
-  const id = Date.now().toString();
   const user = auth.currentUser;
-
-  const item = {
-    id,
-    name,
-    location: locationText,
-    timestamp: Date.now(),
-    userId: user ? user.uid : null,
-  };
+  const timestamp = Date.now();
 
   // Guest mode: keep items only in memory
   if (!user) {
+    const item = {
+      id: "guest-" + timestamp.toString(),
+      name,
+      location: locationText,
+      timestamp,
+      userId: null
+    };
     items.push(item);
     renderItems();
     showToast("Item added (guest — not saved)");
     return;
   }
 
-  // Signed-in user
+  // SIGNED-IN USER
+  let item;
+
   if (navigator.onLine) {
-    await itemsCollection.doc(id).set(item);
+    // ONLINE: let Firestore generate the unique ID
+    const docRef = await itemsCollection.add({
+      name,
+      location: locationText,
+      timestamp,
+      userId: user.uid
+    });
+
+    item = {
+      id: docRef.id,
+      name,
+      location: locationText,
+      timestamp,
+      userId: user.uid
+    };
+
+    // Save the fully-formed item (with ID) back into Firestore
+    await docRef.set(item);
   } else {
+    // OFFLINE: create a local-only ID; mark as "local-" so sync can fix it
+    const tempId = "local-" + timestamp.toString();
+    item = {
+      id: tempId,
+      name,
+      location: locationText,
+      timestamp,
+      userId: user.uid
+    };
+
     await idbAdd(item);
   }
 
+  // Update in-memory list & IndexedDB cache
   await loadItems();
   showToast("Item added!");
 }
@@ -297,12 +350,18 @@ async function deleteItem(id) {
     return;
   }
 
-  if (navigator.onLine) {
-    await itemsCollection.doc(id).delete();
-  } else {
-    await idbDelete(id);
+  // Signed-in user
+  try {
+    if (navigator.onLine) {
+      // Delete from Firestore
+      await itemsCollection.doc(id).delete();
+    }
+  } catch (err) {
+    console.error("Error deleting from Firestore:", err);
   }
 
+  // Always delete local copy
+  await idbDelete(id);
   await loadItems();
   showToast("Item deleted");
 }
@@ -325,6 +384,7 @@ async function loadItems() {
 
   if (navigator.onLine) {
     await loadItemsFromFirebase();
+    await refreshIndexedDBCache(); // mirror cloud → IndexedDB for offline
   } else {
     await loadItemsFromIndexedDB();
   }
@@ -362,6 +422,19 @@ async function loadItemsFromIndexedDB() {
   const all = await idbGetAll();
   items = all.filter((i) => i.userId === user.uid);
   console.log("Loaded from IndexedDB:", items.length, "items");
+}
+
+/**
+ * Mirror the current in-memory items array into IndexedDB
+ * so the app works fully offline with the latest data.
+ */
+async function refreshIndexedDBCache() {
+  const user = auth.currentUser;
+  if (!user) return;
+  await idbClear();
+  for (const item of items) {
+    await idbAdd(item);
+  }
 }
 
 /***************************************************************************
